@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: NetChat REST API for authentication, presence, users, and message history
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Session authentication
+  - name: users
+    description: User discovery and presence
+  - name: messages
+    description: Persisted one-to-one chat history
 paths:
   /healthz:
     get:
@@ -24,6 +30,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid registration
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in and create a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List registered users and presence
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+  /users/{userId}/messages:
+    get:
+      operationId: getChatHistory
+      tags: [messages]
+      summary: Get a chronological conversation with another user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Conversation messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+        "401":
+          description: Not authenticated
 components:
   schemas:
     HealthStatus:
@@ -33,4 +137,88 @@ components:
           type: string
       required:
         - status
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - displayName
+        - online
+        - lastSeen
+      properties:
+        id:
+          type: number
+        username:
+          type: string
+        displayName:
+          type: string
+        online:
+          type: boolean
+        lastSeen:
+          type: ["string", "null"]
+          format: date-time
+    Message:
+      type: object
+      required:
+        - id
+        - senderId
+        - receiverId
+        - message
+        - timestamp
+        - status
+      properties:
+        id:
+          type: number
+        senderId:
+          type: number
+        receiverId:
+          type: number
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [sent, delivered, read]
+    RegisterInput:
+      type: object
+      required:
+        - username
+        - displayName
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 24
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 40
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LoginInput:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 24
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    AuthResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
 

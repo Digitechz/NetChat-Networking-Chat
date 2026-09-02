@@ -1,15 +1,16 @@
-# [Project name]
+# NetChat
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+NetChat is a real-time one-to-one messaging application that makes client-server networking visible for a college project demonstration.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — development PostgreSQL connection string
+- Required env: `SESSION_SECRET` — session token hashing secret
 
 ## Stack
 
@@ -22,23 +23,39 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/netchat/src/App.tsx` — authenticated UI, auth screens, and WebSocket client
+- `artifacts/netchat/src/index.css` — NetChat visual tokens and global styles
+- `artifacts/api-server/src/routes/` — REST routes for auth, users, and history
+- `artifacts/api-server/src/lib/realtime.ts` — WebSocket protocol, routing, delivery, and presence
+- `artifacts/api-server/src/lib/auth.ts` — password hashing and cookie-backed sessions
+- `lib/db/src/schema/` — users, sessions, and messages tables
+- `lib/api-spec/openapi.yaml` — REST contract source of truth
+- `README.md` — runbook, demo accounts, protocol, and networking explanations
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The workspace-provided PostgreSQL database is used through Drizzle so the app runs in the hosted project without introducing a second database service.
+- Authentication is intentionally local because the project requires username/password registration; passwords use Node `scrypt` and sessions use HttpOnly cookies.
+- WebSocket messages use a small `{ type, payload }` envelope so the protocol is easy to explain during a networking viva.
+- The server keeps a set of sockets per user, allowing reconnects and multiple demonstration windows without incorrectly marking a user offline.
+- The optional group-chat and file-sharing features are intentionally deferred until the one-to-one path is stable.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Users can register or use seeded demo accounts, browse other registered users,
+open persisted direct conversations, send messages over WebSocket, see delivery
+and read states, observe typing and presence changes, and inspect live network
+connection details.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the project focused on a dependable, easy-to-explain college networking demonstration rather than speculative features.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The API server owns both REST (`/api`) and WebSocket (`/ws`) traffic; the WebSocket path must remain listed in the API artifact routing configuration.
+- Run API schema codegen after OpenAPI changes before using generated hooks or validators.
+- Demo accounts are seeded on API startup and use `password123` only for local demonstration.
 
 ## Pointers
 

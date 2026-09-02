@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "NetChat"
+description = "A real-time one-to-one messaging application for demonstrating client-server networking, WebSocket routing, PostgreSQL persistence, authentication, presence, and delivery states."
+version = "1.0.0"
+id = "artifacts/netchat"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25141
+
+[services.development]
+run = "pnpm --filter @workspace/netchat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/netchat", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/netchat/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25141"
+BASE_PATH = "/"

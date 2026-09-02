@@ -1,0 +1,441 @@
+Build a complete working full-stack web application called "NetChat".
+
+IMPORTANT:
+This is a college Computer Networking project. It is a simple WhatsApp-like messaging application whose main purpose is to demonstrate client-server networking, real-time communication, message routing, persistence, and multiple connected clients.
+
+Do NOT make this a static UI prototype. Make it a functional application.
+
+TECH STACK:
+- React + Vite
+- Tailwind CSS
+- Node.js backend
+- WebSocket for real-time communication
+- SQLite database for simplicity
+- REST API where appropriate
+- WebSocket for real-time chat
+- Keep the project easy to run locally
+- Do not require paid APIs or external AI APIs
+
+CORE FEATURES:
+
+1. REGISTRATION
+Create a registration page with:
+- Username
+- Display name
+- Password
+
+Store users in SQLite.
+
+Passwords must NOT be stored as plaintext. Use a proper password hashing method.
+
+2. LOGIN
+Create a login page.
+
+After successful login:
+- Create a user session
+- Connect the client to the WebSocket server
+- Show the main chat application
+
+3. MAIN APPLICATION UI
+
+Create a modern messaging UI inspired by common chat applications, but DO NOT copy WhatsApp's logo, proprietary assets, or exact branding.
+
+Use a dark modern interface.
+
+Layout:
+
+LEFT SIDEBAR:
+- Application name: NetChat
+- Current user
+- Search users
+- List of conversations
+- Online indicators
+
+RIGHT SIDE:
+- Selected user's name
+- Online/offline status
+- Chat messages
+- Message timestamps
+- Message input
+- Send button
+
+4. USER LIST
+
+Users should be able to see other registered users.
+
+Clicking a user should open a conversation.
+
+Show:
+- Display name
+- Username
+- Online/offline indicator
+
+5. REAL-TIME CHAT
+
+This is the most important feature.
+
+Use WebSocket communication.
+
+Architecture:
+
+CLIENT A
+    |
+    | WebSocket
+    v
+SERVER
+    |
+    | WebSocket
+    v
+CLIENT B
+
+When Alice sends a message to Bob:
+
+1. Alice's client creates a message.
+2. Send the message through WebSocket to the server.
+3. Server validates the sender.
+4. Server stores the message in SQLite.
+5. Server checks whether Bob is online.
+6. If Bob is online, send the message through Bob's WebSocket.
+7. Bob's UI immediately displays the message.
+
+Do NOT simulate this only on the frontend.
+
+6. MESSAGE DATABASE
+
+Create a messages table containing:
+
+- id
+- sender_id
+- receiver_id
+- message
+- timestamp
+- status
+
+Status can be:
+- sent
+- delivered
+- read
+
+7. CHAT HISTORY
+
+When a user opens a conversation:
+- Request previous messages from the backend.
+- Retrieve messages from SQLite.
+- Display them in chronological order.
+
+Messages must remain after refreshing the page.
+
+8. ONLINE/OFFLINE STATUS
+
+Maintain a list of active WebSocket connections on the server.
+
+Example:
+
+userId -> websocket connection
+
+When a user connects:
+- Mark them online.
+- Notify relevant clients.
+
+When a user disconnects:
+- Mark them offline.
+- Update their last-seen time.
+
+Display online/offline status in the UI.
+
+9. TYPING INDICATOR
+
+Add a simple real-time typing indicator.
+
+When Alice types:
+- Send TYPING_START through WebSocket.
+
+When she stops:
+- Send TYPING_STOP.
+
+Bob should see:
+
+"Alice is typing..."
+
+10. MESSAGE DELIVERY
+
+Implement basic message status:
+
+SENT
+↓
+DELIVERED
+↓
+READ
+
+For example:
+
+✓ Sent
+✓✓ Delivered
+✓✓ Read
+
+The exact icons do not need to match WhatsApp.
+
+11. NETWORKING PROTOCOL
+
+Create a simple documented application-level message format.
+
+For example:
+
+{
+  "type": "SEND_MESSAGE",
+  "senderId": 1,
+  "receiverId": 2,
+  "message": "Hello",
+  "timestamp": "..."
+}
+
+Support message types such as:
+
+LOGIN
+SEND_MESSAGE
+RECEIVE_MESSAGE
+MESSAGE_DELIVERED
+MESSAGE_READ
+TYPING_START
+TYPING_STOP
+USER_ONLINE
+USER_OFFLINE
+GET_CHAT_HISTORY
+
+Keep the protocol easy to understand because this will be explained in a networking viva.
+
+12. NETWORKING INFORMATION PANEL
+
+Add a small "Network Info" panel accessible from the application.
+
+Show:
+
+- Connection status
+- WebSocket status
+- Server address
+- Server port
+- Current user ID
+- Number of active users
+- Last message received time
+
+This is specifically for demonstrating the networking aspect of the project.
+
+13. SERVER LOGS
+
+The backend should log events such as:
+
+USER_CONNECTED
+USER_DISCONNECTED
+MESSAGE_RECEIVED
+MESSAGE_STORED
+MESSAGE_DELIVERED
+
+Example:
+
+[12:30:10] USER_CONNECTED: 101
+[12:30:15] MESSAGE_RECEIVED: 101 -> 102
+[12:30:15] MESSAGE_STORED: 45
+[12:30:15] MESSAGE_DELIVERED: 45
+
+Do not log passwords.
+
+14. ERROR HANDLING
+
+Handle:
+- WebSocket disconnect
+- Server unavailable
+- Invalid login
+- Invalid message
+- Empty message
+- Database errors
+- Duplicate usernames
+
+Show useful error messages in the UI.
+
+15. RECONNECTION
+
+If the WebSocket connection is lost:
+- Display "Disconnected"
+- Automatically attempt to reconnect
+- Display "Reconnecting..."
+- Restore the connection when possible
+
+16. SECURITY
+
+Implement basic:
+- Password hashing
+- Input validation
+- Authentication
+- Server-side validation
+- Message size limits
+
+Never trust sender IDs supplied blindly by the client.
+
+17. OPTIONAL GROUP CHAT
+
+If the core application is working correctly, add a simple group chat system.
+
+Groups should have:
+- Group ID
+- Group name
+- Members
+- Messages
+
+If this causes instability, DO NOT implement it. The one-to-one chat is more important.
+
+18. OPTIONAL FILE SHARING
+
+Only if everything else works:
+- Allow small image/file uploads.
+- Store files locally.
+- Send file metadata through WebSocket.
+
+This feature is NOT required for the MVP.
+
+19. DATABASE
+
+Use SQLite because this project must be easy to run.
+
+Tables:
+
+users:
+- id
+- username
+- password_hash
+- display_name
+- online
+- last_seen
+
+messages:
+- id
+- sender_id
+- receiver_id
+- message
+- timestamp
+- status
+
+groups:
+- id
+- name
+
+group_members:
+- group_id
+- user_id
+
+20. DEMO DATA
+
+Create an easy way to create test users:
+
+Alice
+Bob
+Charlie
+
+OR provide a seed script.
+
+Make the application easy to demonstrate immediately.
+
+21. PROJECT STRUCTURE
+
+Keep the project organized:
+
+client/
+server/
+database/
+README.md
+
+Separate:
+- UI
+- WebSocket client
+- WebSocket server
+- database logic
+- authentication
+- message handling
+
+22. README
+
+Generate a complete README explaining:
+
+Project name:
+NetChat
+
+Purpose:
+A simple WhatsApp-like real-time messaging application demonstrating computer networking.
+
+Architecture:
+
+Client A
+   |
+WebSocket
+   |
+Server
+   |
+SQLite
+   |
+WebSocket
+   |
+Client B
+
+Explain:
+- Client-server architecture
+- WebSocket
+- IP address
+- Port
+- Real-time communication
+- Message routing
+- Database persistence
+- Online/offline detection
+
+Also include exact commands to:
+1. Install dependencies
+2. Start backend
+3. Start frontend
+4. Run the application
+
+23. VERY IMPORTANT
+
+Prioritize a WORKING APPLICATION over excessive features.
+
+MUST WORK:
+- Registration
+- Login
+- User list
+- One-to-one chat
+- Real-time WebSocket messaging
+- Database persistence
+- Chat history
+- Online/offline status
+
+OPTIONAL:
+- Typing indicator
+- Delivery/read status
+- Groups
+- File sharing
+
+Do not spend time making unnecessary features.
+
+24. UI QUALITY
+
+Make the interface look polished enough for a college project demonstration.
+
+Use:
+- Dark theme
+- Rounded cards
+- Clean typography
+- Smooth transitions
+- Message bubbles
+- Online indicators
+- Responsive layout
+
+Do not make it look like a generic AI-generated dashboard.
+
+25. FINAL REQUIREMENT
+
+BUILD THE COMPLETE APPLICATION NOW.
+
+Do not only explain how to build it.
+
+Create the actual files, backend, frontend, database, WebSocket server, WebSocket client, authentication, and README.
+
+After generating the application, test the major flows and fix obvious errors.
+
+The final result must be runnable locally and suitable for a college networking-project demonstration.

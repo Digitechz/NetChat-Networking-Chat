@@ -1,0 +1,1 @@
+- [OpenAPI/Zod compatibility](openapi-zod-compatibility.md) — use numeric ID schemas with explicit integer checks because generated zod.int() is incompatible with this workspace's Zod 3.
