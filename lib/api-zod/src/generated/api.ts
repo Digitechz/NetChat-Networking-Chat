@@ -23,6 +23,8 @@ export const HealthCheckResponse = zod.object({
 export const registerBodyUsernameMin = 3;
 export const registerBodyUsernameMax = 24;
 
+
+export const registerBodyUsernameRegExp = new RegExp('^[a-zA-Z0-9._]+$');
 export const registerBodyDisplayNameMax = 40;
 
 export const registerBodyPasswordMin = 8;
@@ -31,7 +33,7 @@ export const registerBodyPasswordMax = 128;
 
 
 export const RegisterBody = zod.object({
-  "username": zod.string().min(registerBodyUsernameMin).max(registerBodyUsernameMax),
+  "username": zod.string().min(registerBodyUsernameMin).max(registerBodyUsernameMax).regex(registerBodyUsernameRegExp),
   "displayName": zod.string().min(1).max(registerBodyDisplayNameMax),
   "password": zod.string().min(registerBodyPasswordMin).max(registerBodyPasswordMax)
 })
@@ -53,13 +55,15 @@ export const RegisterResponse = zod.object({
 export const loginBodyUsernameMin = 3;
 export const loginBodyUsernameMax = 24;
 
+
+export const loginBodyUsernameRegExp = new RegExp('^[a-zA-Z0-9._]+$');
 export const loginBodyPasswordMin = 8;
 export const loginBodyPasswordMax = 128;
 
 
 
 export const LoginBody = zod.object({
-  "username": zod.string().min(loginBodyUsernameMin).max(loginBodyUsernameMax),
+  "username": zod.string().min(loginBodyUsernameMin).max(loginBodyUsernameMax).regex(loginBodyUsernameRegExp),
   "password": zod.string().min(loginBodyPasswordMin).max(loginBodyPasswordMax)
 })
 

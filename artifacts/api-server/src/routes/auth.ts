@@ -28,8 +28,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
   const username = parsed.data.username.trim().toLowerCase();
   const displayName = parsed.data.displayName.trim();
-  if (!/^[a-z0-9_]+$/.test(username) || displayName.length === 0) {
-    res.status(400).json({ error: "Username may contain letters, numbers, and underscores only." });
+  if (!/^[a-z0-9._]+$/.test(username) || displayName.length === 0) {
+    res.status(400).json({ error: "Username may contain letters, numbers, periods, and underscores only." });
     return;
   }
   const [existing] = await db

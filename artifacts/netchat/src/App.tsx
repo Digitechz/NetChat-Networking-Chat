@@ -212,8 +212,19 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setFormError('');
-    if (values.username.trim().length < 3 || values.password.length < 8 || (isRegister && !values.displayName.trim())) {
-      setFormError(isRegister ? 'Use a username, display name, and a password of at least 8 characters.' : 'Use a username of at least 3 characters and a password of at least 8 characters.');
+    const username = values.username.trim().toLowerCase();
+    const displayName = values.displayName.trim();
+    if (
+      username.length < 3 ||
+      username.length > 24 ||
+      !/^[a-z0-9._]+$/.test(username) ||
+      values.password.length < 8 ||
+      values.password.length > 128 ||
+      (isRegister && (displayName.length === 0 || displayName.length > 40))
+    ) {
+      setFormError(isRegister
+        ? 'Use 3–24 characters for your username (letters, numbers, periods, or underscores), a display name up to 40 characters, and a password of 8–128 characters.'
+        : 'Use 3–24 characters for your username (letters, numbers, periods, or underscores) and a password of 8–128 characters.');
       return;
     }
     const onSuccess = (result: { user: User }) => {
@@ -222,9 +233,9 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       setLocation('/');
     };
     if (isRegister) {
-      register.mutate({ data: values }, { onSuccess, onError: (error) => setFormError(getErrorMessage(error, 'Registration could not be completed.')) });
+      register.mutate({ data: { username, displayName, password: values.password } }, { onSuccess, onError: (error) => setFormError(getErrorMessage(error, 'Registration could not be completed.')) });
     } else {
-      login.mutate({ data: { username: values.username, password: values.password } }, { onSuccess, onError: (error) => setFormError(getErrorMessage(error, 'Those credentials did not connect.')) });
+      login.mutate({ data: { username, password: values.password } }, { onSuccess, onError: (error) => setFormError(getErrorMessage(error, 'Those credentials did not connect.')) });
     }
   };
 
@@ -249,9 +260,9 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
           </div>
           {formError && <div className="mb-5 rounded-xl border border-[#e7795c]/35 bg-[#e7795c]/10 px-4 py-3 text-xs leading-5 text-[#aa4d38]" data-testid="status-auth-error">{formError}</div>}
           <form className="space-y-5" onSubmit={submit}>
-            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">username</span><input data-testid="input-username" autoComplete="username" value={values.username} onChange={(event) => setValues({ ...values, username: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="maya.chen" /></label>
-            {isRegister && <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">display name</span><input data-testid="input-display-name" autoComplete="name" value={values.displayName} onChange={(event) => setValues({ ...values, displayName: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="Maya Chen" /></label>}
-            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">password</span><input data-testid="input-password" type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} value={values.password} onChange={(event) => setValues({ ...values, password: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="••••••••" /></label>
+             <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">username</span><input data-testid="input-username" required maxLength={24} autoComplete="username" value={values.username} onChange={(event) => setValues({ ...values, username: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="maya.chen" /><span className="mt-2 block text-[11px] text-[hsl(var(--muted-foreground))]">3–24 characters · letters, numbers, periods, or underscores</span></label>
+             {isRegister && <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">display name</span><input data-testid="input-display-name" required maxLength={40} autoComplete="name" value={values.displayName} onChange={(event) => setValues({ ...values, displayName: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="Maya Chen" /></label>}
+             <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">password</span><input data-testid="input-password" required minLength={8} maxLength={128} type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} value={values.password} onChange={(event) => setValues({ ...values, password: event.target.value })} className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-4 text-sm outline-none transition-colors focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/.15)]" placeholder="••••••••" /></label>
             <button data-testid="button-submit-auth" disabled={pending} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] text-sm font-bold text-[hsl(var(--primary-foreground))] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65">{pending && <LoaderCircle className="h-4 w-4 animate-spin" />}{isRegister ? 'Create account' : 'Sign in'}<ArrowUpRight className="h-4 w-4" /></button>
           </form>
           <p className="mt-8 text-center text-sm text-[hsl(var(--muted-foreground))]">{isRegister ? 'Already connected?' : 'New to NetChat?'} <Link href={isRegister ? '/login' : '/register'} className="font-bold text-[hsl(var(--primary))] hover:underline" data-testid="link-switch-auth">{isRegister ? 'Sign in' : 'Create an account'}</Link></p>

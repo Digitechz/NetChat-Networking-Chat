@@ -192,6 +192,7 @@ components:
           type: string
           minLength: 3
           maxLength: 24
+          pattern: "^[a-zA-Z0-9._]+$"
         displayName:
           type: string
           minLength: 1
@@ -210,6 +211,7 @@ components:
           type: string
           minLength: 3
           maxLength: 24
+          pattern: "^[a-zA-Z0-9._]+$"
         password:
           type: string
           minLength: 8

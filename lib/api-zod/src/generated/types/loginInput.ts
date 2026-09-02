@@ -10,6 +10,7 @@ export interface LoginInput {
   /**
      * @minLength 3
      * @maxLength 24
+     * @pattern ^[a-zA-Z0-9._]+$
      */
   username: string;
   /**
