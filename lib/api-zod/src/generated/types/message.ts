@@ -5,6 +5,7 @@
  * NetChat REST API for authentication, presence, users, and message history
  * OpenAPI spec version: 0.1.0
  */
+import type { MessageMessageType } from './messageMessageType';
 import type { MessageStatus } from './messageStatus';
 
 export interface Message {
@@ -12,6 +13,15 @@ export interface Message {
   senderId: number;
   receiverId: number;
   message: string;
+  messageType: MessageMessageType;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  fileSize: number | null;
+  /** @nullable */
+  fileContentType: string | null;
+  /** @nullable */
+  filePath: string | null;
   timestamp: Date;
   status: MessageStatus;
 }

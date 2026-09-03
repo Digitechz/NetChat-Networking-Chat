@@ -121,9 +121,58 @@ export const GetChatHistoryResponseItem = zod.object({
   "senderId": zod.number(),
   "receiverId": zod.number(),
   "message": zod.string(),
+  "messageType": zod.enum(['text', 'file']),
+  "fileName": zod.string().nullable(),
+  "fileSize": zod.number().nullable(),
+  "fileContentType": zod.string().nullable(),
+  "filePath": zod.string().nullable(),
   "timestamp": zod.coerce.date(),
   "status": zod.enum(['sent', 'delivered', 'read'])
 })
 export const GetChatHistoryResponse = zod.array(GetChatHistoryResponseItem)
+
+
+/**
+ * @summary Request a presigned URL for a small file upload
+ */
+export const requestUploadUrlBodyNameMax = 160;
+
+export const requestUploadUrlBodySizeMax = 5242880;
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1).max(requestUploadUrlBodyNameMax),
+  "size": zod.number().min(1).max(requestUploadUrlBodySizeMax),
+  "contentType": zod.string().min(1)
+})
+
+export const requestUploadUrlResponseMetadataNameMax = 160;
+
+export const requestUploadUrlResponseMetadataSizeMax = 5242880;
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string(),
+  "metadata": zod.object({
+  "name": zod.string().min(1).max(requestUploadUrlResponseMetadataNameMax),
+  "size": zod.number().min(1).max(requestUploadUrlResponseMetadataSizeMax),
+  "contentType": zod.string().min(1)
+})
+})
+
+
+/**
+ * @summary Download a shared file
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string()
+})
+
+export const GetStorageObjectResponse = zod.unknown()
 
 

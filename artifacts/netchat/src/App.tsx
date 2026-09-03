@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
-import { ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, LoaderCircle, LogOut, MessageCircle, Network, PanelLeft, Radio, RefreshCw, Search, Send, ShieldCheck, Signal, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, Download, FileText, LoaderCircle, LogOut, MessageCircle, Network, Paperclip, PanelLeft, Radio, RefreshCw, Search, Send, ShieldCheck, Signal, UserPlus, Users, X } from 'lucide-react';
 import { useGetChatHistory, useGetCurrentUser, useListUsers, useLogin, useLogout, useRegister, getGetChatHistoryQueryKey, getGetCurrentUserQueryKey, getListUsersQueryKey } from '@workspace/api-client-react';
 import type { Message, User } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -26,6 +26,25 @@ function timeLabel(value: string | null | undefined, withDate = false) {
     ? date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
+
+function fileSizeLabel(size: number | null | undefined) {
+  if (!size) return 'small file';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const fileContentTypes: Record<string, string> = {
+  txt: 'text/plain',
+  log: 'text/plain',
+  md: 'text/markdown',
+  markdown: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  xml: 'application/xml',
+  yaml: 'application/yaml',
+  yml: 'application/yaml',
+};
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
@@ -312,11 +331,33 @@ function MessageStatus({ status }: { status: string }) {
   return <Check className="h-3 w-3 text-[hsl(var(--muted-foreground))]" />;
 }
 
+function FileMessage({ message, mine }: { message: Message; mine: boolean }) {
+  if (!message.filePath || !message.fileName) {
+    return <p className="whitespace-pre-wrap text-sm leading-6">{message.message}</p>;
+  }
+  return (
+    <a
+      href={`/api/storage${message.filePath}`}
+      download={message.fileName}
+      className={`flex min-w-[190px] items-center gap-3 rounded-xl border px-3 py-3 transition-colors ${mine ? 'border-white/20 bg-white/10 hover:bg-white/20' : 'border-[hsl(var(--border))] bg-[hsl(var(--muted))] hover:bg-[hsl(var(--secondary))]'}`}
+      data-testid={`link-file-${message.id}`}
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${mine ? 'bg-white/15' : 'bg-[hsl(var(--card))]'}`}><FileText className="h-4 w-4" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-bold">{message.fileName}</span>
+        <span className={`mt-1 block font-mono text-[9px] uppercase tracking-[.08em] ${mine ? 'text-[hsl(var(--primary-foreground)/.7)]' : 'text-[hsl(var(--muted-foreground))]'}`}>{fileSizeLabel(message.fileSize)} · download</span>
+      </span>
+      <Download className="h-4 w-4 shrink-0" />
+    </a>
+  );
+}
+
 function ChatPanel({ me, selected, socketState, sendSocket, onBack, remoteTyping, incomingMessage }: { me: User; selected: User; socketState: SocketState; sendSocket: (type: string, payload: Record<string, unknown>) => boolean; onBack: () => void; remoteTyping: boolean; incomingMessage: Message | null }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [typing, setTyping] = useState(false);
+  const [fileStatus, setFileStatus] = useState('');
   const { data: history, isLoading, isError } = useGetChatHistory(selected.id, { query: { enabled: Boolean(selected.id), queryKey: getGetChatHistoryQueryKey(selected.id) } });
   const messages = useMemo(() => {
     const known = history ?? [];
@@ -326,10 +367,41 @@ function ChatPanel({ me, selected, socketState, sendSocket, onBack, remoteTyping
   const sendMessage = () => {
     const text = draft.trim();
     if (!text) return;
-    const optimistic: Message = { id: Date.now(), senderId: me.id, receiverId: selected.id, message: text, timestamp: new Date().toISOString(), status: 'sent' };
+    const optimistic: Message = { id: Date.now(), senderId: me.id, receiverId: selected.id, message: text, messageType: 'text', fileName: null, fileSize: null, fileContentType: null, filePath: null, timestamp: new Date().toISOString(), status: 'sent' };
     setLocalMessages((current) => [...current, optimistic]);
     setDraft('');
     sendSocket('SEND_MESSAGE', { receiverId: selected.id, message: text });
+  };
+  const shareFile = async (file: File) => {
+    const extension = file.name.toLowerCase().split('.').pop() ?? '';
+    const contentType = fileContentTypes[extension];
+    if (!contentType) {
+      setFileStatus('Choose a .txt, .md, .csv, .json, .xml, .yaml, or .log file.');
+      return;
+    }
+    if (file.size < 1 || file.size > 5 * 1024 * 1024) {
+      setFileStatus('Files must be smaller than 5 MB.');
+      return;
+    }
+    setFileStatus(`Uploading ${file.name}...`);
+    try {
+      const urlResponse = await fetch('/api/storage/uploads/request-url', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType }),
+      });
+      const uploadDetails = await urlResponse.json() as { uploadURL?: string; objectPath?: string; error?: string };
+      if (!urlResponse.ok || !uploadDetails.uploadURL || !uploadDetails.objectPath) throw new Error(uploadDetails.error || 'Could not prepare the upload.');
+      const uploadResponse = await fetch(uploadDetails.uploadURL, { method: 'PUT', headers: { 'content-type': contentType }, body: file });
+      if (!uploadResponse.ok) throw new Error('The file upload did not complete.');
+      if (!sendSocket('SEND_FILE', { receiverId: selected.id, fileName: file.name, fileSize: file.size, contentType, objectPath: uploadDetails.objectPath })) {
+        throw new Error('The live connection is offline. Try again in a moment.');
+      }
+      setFileStatus(`${file.name} shared`);
+    } catch (error) {
+      setFileStatus(error instanceof Error ? error.message : 'File sharing failed.');
+    }
   };
   const onDraft = (value: string) => {
     setDraft(value);
@@ -372,9 +444,9 @@ function ChatPanel({ me, selected, socketState, sendSocket, onBack, remoteTyping
         {isLoading && <div className="mx-auto max-w-2xl space-y-4">{[1, 2, 3].map((item) => <div key={item} className={`h-16 w-2/3 animate-pulse rounded-2xl bg-[hsl(var(--muted))] ${item === 2 ? 'ml-auto' : ''}`} />)}</div>}
         {isError && <div className="mx-auto flex max-w-md flex-col items-center rounded-2xl border border-[#e7795c]/30 bg-[#e7795c]/10 p-7 text-center text-[#aa4d38]" data-testid="status-history-error"><RefreshCw className="mb-3 h-5 w-5" /><p className="text-sm font-bold">This route is quiet.</p><p className="mt-1 text-xs leading-5">Message history could not be loaded. New messages will retry through the live relay.</p></div>}
         {!isLoading && !isError && messages.length === 0 && <div className="mx-auto mt-16 max-w-xs text-center"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]"><MessageCircle className="h-5 w-5" /></div><p className="font-['Space_Grotesk'] font-bold">First contact</p><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Start a direct message with {selected.displayName.split(' ')[0]}.</p></div>}
-        <div className="mx-auto flex max-w-2xl flex-col gap-3">{messages.map((message, index) => { const mine = message.senderId === me.id; const showDate = index === 0 || new Date(message.timestamp).toDateString() !== new Date(messages[index - 1]?.timestamp).toDateString(); return <div key={`${message.id}-${index}`} className="animate-rise">{showDate && <div className="my-5 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]"><span className="h-px flex-1 bg-[hsl(var(--border))]" />{new Date(message.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}<span className="h-px flex-1 bg-[hsl(var(--border))]" /></div>}<div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[82%] rounded-2xl px-4 py-3 ${mine ? 'rounded-br-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'rounded-bl-md border border-[hsl(var(--border))] bg-[hsl(var(--card))]'}`}><p className="whitespace-pre-wrap text-sm leading-6" data-testid={`text-message-${message.id}`}>{message.message}</p><div className={`mt-2 flex items-center justify-end gap-1.5 font-mono text-[9px] ${mine ? 'text-[hsl(var(--primary-foreground)/.7)]' : 'text-[hsl(var(--muted-foreground))]'}`}><span>{timeLabel(message.timestamp)}</span>{mine && <MessageStatus status={message.status} />}</div></div></div></div> })}</div>
+         <div className="mx-auto flex max-w-2xl flex-col gap-3">{messages.map((message, index) => { const mine = message.senderId === me.id; const showDate = index === 0 || new Date(message.timestamp).toDateString() !== new Date(messages[index - 1]?.timestamp).toDateString(); return <div key={`${message.id}-${index}`} className="animate-rise">{showDate && <div className="my-5 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]"><span className="h-px flex-1 bg-[hsl(var(--border))]" />{new Date(message.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}<span className="h-px flex-1 bg-[hsl(var(--border))]" /></div>}<div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[82%] rounded-2xl px-4 py-3 ${mine ? 'rounded-br-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'rounded-bl-md border border-[hsl(var(--border))] bg-[hsl(var(--card))]'}`}>{message.messageType === 'file' ? <FileMessage message={message} mine={mine} /> : <p className="whitespace-pre-wrap text-sm leading-6" data-testid={`text-message-${message.id}`}>{message.message}</p>}<div className={`mt-2 flex items-center justify-end gap-1.5 font-mono text-[9px] ${mine ? 'text-[hsl(var(--primary-foreground)/.7)]' : 'text-[hsl(var(--muted-foreground))]'}`}><span>{timeLabel(message.timestamp)}</span>{mine && <MessageStatus status={message.status} />}</div></div></div></div> })}</div>
       </div>
-      <div className="border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 md:p-6"><div className="mx-auto max-w-2xl">{remoteTyping && <p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-[hsl(var(--primary))]" data-testid="status-typing">{selected.displayName.split(' ')[0]} is typing...</p>}<div className="flex items-end gap-3 rounded-2xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] p-2 focus-within:border-[hsl(var(--primary))]"><textarea data-testid="input-message" value={draft} onChange={(event) => onDraft(event.target.value)} onBlur={() => { if (typing) { setTyping(false); sendSocket('TYPING_STOP', { receiverId: selected.id }); } }} rows={1} placeholder={`Message ${selected.displayName.split(' ')[0]}...`} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm outline-none" /><button data-testid="button-send-message" onClick={sendMessage} disabled={!draft.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] transition-transform hover:-translate-y-0.5 disabled:opacity-40"><Send className="h-4 w-4" /></button></div><p className="mt-2 text-center font-mono text-[9px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">enter to send · shift + enter for a new line</p></div></div>
+       <div className="border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 md:p-6"><div className="mx-auto max-w-2xl">{remoteTyping && <p className="mb-2 font-mono text-[10px] uppercase tracking-[.12em] text-[hsl(var(--primary))]" data-testid="status-typing">{selected.displayName.split(' ')[0]} is typing...</p>}{fileStatus && <p className="mb-2 truncate font-mono text-[10px] uppercase tracking-[.1em] text-[hsl(var(--primary))]" data-testid="status-file-upload">{fileStatus}</p>}<div className="flex items-end gap-3 rounded-2xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] p-2 focus-within:border-[hsl(var(--primary))]"><label className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" data-testid="button-attach-file" title="Share a small text file"><Paperclip className="h-4 w-4" /><input type="file" accept=".txt,.log,.md,.markdown,.csv,.json,.xml,.yaml,.yml,text/plain,text/markdown,text/csv,application/json,application/xml,application/yaml" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void shareFile(file); event.currentTarget.value = ''; }} /></label><textarea data-testid="input-message" value={draft} onChange={(event) => onDraft(event.target.value)} onBlur={() => { if (typing) { setTyping(false); sendSocket('TYPING_STOP', { receiverId: selected.id }); } }} rows={1} placeholder={`Message ${selected.displayName.split(' ')[0]}...`} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm outline-none" /><button data-testid="button-send-message" onClick={sendMessage} disabled={!draft.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] transition-transform hover:-translate-y-0.5 disabled:opacity-40"><Send className="h-4 w-4" /></button></div><p className="mt-2 text-center font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">enter to send · shift + enter for a new line · paperclip for small text files</p></div></div>
     </section>
   );
 }

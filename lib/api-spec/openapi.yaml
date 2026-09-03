@@ -16,6 +16,8 @@ tags:
     description: User discovery and presence
   - name: messages
     description: Persisted one-to-one chat history
+  - name: storage
+    description: Small private file uploads and downloads
 paths:
   /healthz:
     get:
@@ -128,6 +130,53 @@ paths:
                   $ref: "#/components/schemas/Message"
         "401":
           description: Not authenticated
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for a small file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid file metadata
+        "401":
+          description: Not authenticated
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [storage]
+      summary: Download a shared file
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Not authenticated
+        "403":
+          description: File is not part of the user's conversation
+        "404":
+          description: File not found
 components:
   schemas:
     HealthStatus:
@@ -164,6 +213,11 @@ components:
         - senderId
         - receiverId
         - message
+        - messageType
+        - fileName
+        - fileSize
+        - fileContentType
+        - filePath
         - timestamp
         - status
       properties:
@@ -175,6 +229,17 @@ components:
           type: number
         message:
           type: string
+        messageType:
+          type: string
+          enum: [text, file]
+        fileName:
+          type: ["string", "null"]
+        fileSize:
+          type: ["number", "null"]
+        fileContentType:
+          type: ["string", "null"]
+        filePath:
+          type: ["string", "null"]
         timestamp:
           type: string
           format: date-time
@@ -216,6 +281,31 @@ components:
           type: string
           minLength: 8
           maxLength: 128
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        size:
+          type: number
+          minimum: 1
+          maximum: 5242880
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath, metadata]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
     AuthResponse:
       type: object
       required:

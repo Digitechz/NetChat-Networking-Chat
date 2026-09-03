@@ -18,6 +18,14 @@ export interface User {
   lastSeen: string | null;
 }
 
+export type MessageMessageType = typeof MessageMessageType[keyof typeof MessageMessageType];
+
+
+export const MessageMessageType = {
+  text: 'text',
+  file: 'file',
+} as const;
+
 export type MessageStatus = typeof MessageStatus[keyof typeof MessageStatus];
 
 
@@ -32,6 +40,15 @@ export interface Message {
   senderId: number;
   receiverId: number;
   message: string;
+  messageType: MessageMessageType;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  fileSize: number | null;
+  /** @nullable */
+  fileContentType: string | null;
+  /** @nullable */
+  filePath: string | null;
   timestamp: string;
   status: MessageStatus;
 }
@@ -67,6 +84,27 @@ export interface LoginInput {
      * @maxLength 128
      */
   password: string;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata: UploadUrlRequest;
 }
 
 export interface AuthResponse {

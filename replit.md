@@ -26,9 +26,10 @@ NetChat is a real-time one-to-one messaging application that makes client-server
 - `artifacts/netchat/src/App.tsx` — authenticated UI, auth screens, and WebSocket client
 - `artifacts/netchat/src/index.css` — NetChat visual tokens and global styles
 - `artifacts/api-server/src/routes/` — REST routes for auth, users, and history
-- `artifacts/api-server/src/lib/realtime.ts` — WebSocket protocol, routing, delivery, and presence
+- `artifacts/api-server/src/lib/realtime.ts` — WebSocket protocol, routing, delivery, presence, and file messages
+- `artifacts/api-server/src/lib/objectStorage.ts` and `routes/storage.ts` — private App Storage uploads and conversation-authorized downloads
 - `artifacts/api-server/src/lib/auth.ts` — password hashing and cookie-backed sessions
-- `lib/db/src/schema/` — users, sessions, and messages tables
+- `lib/db/src/schema/` — users, sessions, and messages tables, including file metadata
 - `lib/api-spec/openapi.yaml` — REST contract source of truth
 - `README.md` — runbook, demo accounts, protocol, and networking explanations
 
@@ -38,7 +39,7 @@ NetChat is a real-time one-to-one messaging application that makes client-server
 - Authentication is intentionally local because the project requires username/password registration; passwords use Node `scrypt` and sessions use HttpOnly cookies.
 - WebSocket messages use a small `{ type, payload }` envelope so the protocol is easy to explain during a networking viva.
 - The server keeps a set of sockets per user, allowing reconnects and multiple demonstration windows without incorrectly marking a user offline.
-- The optional group-chat and file-sharing features are intentionally deferred until the one-to-one path is stable.
+- Group chat remains deferred; small text-file sharing is supported in one-to-one conversations.
 
 ## Product
 

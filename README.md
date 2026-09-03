@@ -35,6 +35,8 @@ the sender from the authenticated session cookie.
 - Real-time WebSocket messaging and server-side recipient routing
 - Sent, delivered, and read message states
 - Real-time typing indicator
+- Small private text-file sharing for `.txt`, `.md`, `.csv`, `.json`, `.xml`,
+  `.yaml`, and `.log` files up to 5 MB
 - Automatic WebSocket reconnection with visible connection state
 - Network Info panel showing connection state, WebSocket path, server address,
   server port, current user ID, active user count, and last received message
@@ -100,6 +102,7 @@ messages include:
 | --- | --- | --- |
 | `LOGIN` | server → client | Confirms the authenticated socket and active-user count |
 | `SEND_MESSAGE` | client → server | Validates, stores, and routes a message |
+| `SEND_FILE` | client → server | Stores and routes metadata for an uploaded text file |
 | `RECEIVE_MESSAGE` | server → client | Delivers a stored message |
 | `MESSAGE_DELIVERED` | server → sender | Confirms the recipient was online |
 | `MESSAGE_READ` | both directions | Marks a received message as read |
@@ -109,6 +112,12 @@ messages include:
 | `CHAT_HISTORY` | server → client | Returns chronological history |
 | `RECONNECTING` | client → UI | Indicates the client is retrying a socket |
 | `ERROR` | server → client | Reports an invalid frame or server-side error |
+
+File sharing uses a two-step flow: the authenticated client requests a
+short-lived presigned upload URL from `POST /api/storage/uploads/request-url`,
+uploads the bytes directly to private App Storage, and then sends a `SEND_FILE`
+frame containing the stored object path. Downloads are authenticated and only
+allowed for users who are part of the conversation containing that file.
 
 Example server response:
 

@@ -19,6 +19,17 @@ type Client = { socket: WebSocket; user: User };
 type ClientEvent = Record<string, unknown> & { type: string };
 
 const clients = new Map<number, Set<WebSocket>>();
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const allowedFileTypes = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/xml",
+  "text/xml",
+  "application/yaml",
+  "text/yaml",
+]);
 
 function send(socket: WebSocket, payload: ClientEvent): void {
   if (socket.readyState === WebSocket.OPEN) {
@@ -52,6 +63,11 @@ function toMessageResponse(message: Message) {
     senderId: message.senderId,
     receiverId: message.receiverId,
     message: message.message,
+    messageType: message.messageType,
+    fileName: message.fileName,
+    fileSize: message.fileSize,
+    fileContentType: message.fileContentType,
+    filePath: message.filePath,
     timestamp: message.timestamp,
     status: message.status,
   };
@@ -156,6 +172,71 @@ async function handleMessage(client: Client, raw: string): Promise<void> {
       { messageId: stored.id, senderId: client.user.id, receiverId },
       "MESSAGE_STORED",
     );
+    return;
+  }
+
+  if (event.type === "SEND_FILE") {
+    const receiverId = Number(body.receiverId);
+    const fileName = typeof body.fileName === "string" ? body.fileName.trim() : "";
+    const fileSize = Number(body.fileSize);
+    const fileContentType = typeof body.contentType === "string" ? body.contentType : "";
+    const filePath = typeof body.objectPath === "string" ? body.objectPath : "";
+    if (
+      !Number.isInteger(receiverId) ||
+      receiverId <= 0 ||
+      receiverId === client.user.id ||
+      !fileName ||
+      fileName.length > 160 ||
+      !Number.isInteger(fileSize) ||
+      fileSize < 1 ||
+      fileSize > MAX_FILE_SIZE ||
+      !allowedFileTypes.has(fileContentType) ||
+      !/^\/objects\/uploads\/[a-z0-9-]+$/.test(filePath)
+    ) {
+      send(client.socket, {
+        type: "ERROR",
+        message: "Only text files up to 5 MB can be shared.",
+      });
+      return;
+    }
+    const [receiver] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, receiverId))
+      .limit(1);
+    if (!receiver) {
+      send(client.socket, { type: "ERROR", message: "Recipient not found." });
+      return;
+    }
+    const delivered = isOnline(receiverId);
+    const [stored] = await db
+      .insert(messagesTable)
+      .values({
+        senderId: client.user.id,
+        receiverId,
+        message: fileName,
+        messageType: "file",
+        fileName,
+        fileSize,
+        fileContentType,
+        filePath,
+        status: delivered ? "delivered" : "sent",
+      })
+      .returning();
+    if (!stored) {
+      send(client.socket, { type: "ERROR", message: "File message could not be stored." });
+      return;
+    }
+    const messagePayload = { type: "RECEIVE_MESSAGE", payload: toMessageResponse(stored) };
+    send(client.socket, messagePayload);
+    if (delivered) {
+      sendToUser(receiverId, messagePayload);
+      send(client.socket, {
+        type: "MESSAGE_DELIVERED",
+        payload: { messageId: stored.id, senderId: stored.senderId, receiverId: stored.receiverId },
+      });
+    }
+    logger.info({ messageId: stored.id, senderId: client.user.id, receiverId, fileName }, "FILE_MESSAGE_STORED");
     return;
   }
 
